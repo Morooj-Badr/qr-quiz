@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QR Quiz</title>
+<style>
+:root{--bg:#10121b;--panel:#191d2b;--panel2:#22283a;--text:#f5f6fb;--muted:#aab2c7;--accent:#ff4057;--accent2:#ff7383;--line:#343b52;--good:#38d996;--bad:#ff6b76}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#26243a 0,#10121b 55%);color:var(--text);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;min-height:100vh}
+header{padding:22px 16px;text-align:center;border-bottom:1px solid #ffffff12}header .logo{font-size:13px;letter-spacing:.18em;color:var(--accent2);font-weight:800}header h1{margin:5px 0;font-size:clamp(27px,5vw,40px)}header p{margin:0;color:var(--muted)}
+main{width:min(760px,calc(100% - 28px));margin:28px auto 60px}.card{background:linear-gradient(145deg,#1c2030,#171a27);border:1px solid var(--line);border-radius:22px;padding:clamp(18px,4vw,30px);box-shadow:0 18px 50px #0003;margin-bottom:18px}
+.hidden{display:none!important}.muted{color:var(--muted)}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.between{justify-content:space-between}
+button,input,textarea{font:inherit}button{border:0;border-radius:12px;padding:12px 17px;background:var(--accent);color:white;font-weight:750;cursor:pointer;transition:.15s}button:hover{filter:brightness(1.1);transform:translateY(-1px)}button.secondary{background:var(--panel2);border:1px solid var(--line)}button.danger{background:#722936}button:disabled{opacity:.45;cursor:not-allowed;transform:none}
+input,textarea{width:100%;border-radius:11px;padding:12px 13px;background:#10131e;border:1px solid var(--line);color:var(--text);margin:5px 0 13px}label{font-weight:650;font-size:14px}textarea{min-height:72px;resize:vertical}
+.progress{height:7px;border-radius:99px;background:#30364a;overflow:hidden;margin:16px 0 22px}.progress span{height:100%;display:block;background:var(--accent);width:0;transition:width .2s}
+.option{display:flex;gap:12px;align-items:center;width:100%;text-align:left;background:#202538;border:1px solid #3a425b;padding:14px;margin:9px 0;border-radius:13px;color:var(--text);font-weight:550}.option.selected{border-color:var(--accent);background:#47232e}.option .letter{display:grid;place-items:center;min-width:30px;height:30px;border-radius:9px;background:#343b52;font-weight:800}
+.statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}.stat{background:#111521;border:1px solid var(--line);padding:15px;border-radius:14px;text-align:center}.stat strong{display:block;font-size:24px}.stat span{color:var(--muted);font-size:12px}
+hr{border:0;border-top:1px solid var(--line);margin:20px 0}.question-item,.score-item{padding:14px;border:1px solid var(--line);border-radius:14px;margin:10px 0;background:#141824}.question-item h3{margin:0 0 8px;font-size:16px}.small{font-size:13px}.pill{font-size:12px;background:#343b52;color:#e5e8f3;padding:4px 8px;border-radius:99px}
+.notice{padding:12px 14px;border-radius:12px;background:#302638;color:#ffd8df;margin:12px 0}.success{color:var(--good)}.error{color:var(--bad)}.footer{text-align:center;color:var(--muted);font-size:12px;padding:15px}
+@media(max-width:480px){.statgrid{grid-template-columns:1fr 1fr}.stat:last-child{grid-column:1/-1}.row button{flex:1}}
+</style>
+</head>
+<body>
+<header><div class="logo">SCAN · THINK · SCORE</div><h1 id="brandTitle">The QR Quiz</h1><p id="brandSubtitle">A little challenge. How high can you score?</p></header>
+<main>
+  <div id="setupNotice" class="card notice hidden"></div>
+  <section id="home" class="card">
+    <h2>Ready to play?</h2><p class="muted">Enter your name, then answer each question. Your score will appear at the end.</p>
+    <label for="playerName">Your name or nickname</label><input id="playerName" maxlength="40" placeholder="e.g. Alex" autocomplete="nickname">
+    <button id="startBtn">Start quiz →</button>
+    <p class="muted small">Please use a nickname if you don't want your full name displayed on the leaderboard.</p>
+  </section>
+  <section id="quiz" class="card hidden">
+    <div class="row between"><span class="pill" id="questionCount">Question 1 of 5</span><span class="muted small" id="liveScore">Score: 0</span></div>
+    <div class="progress"><span id="progressBar"></span></div>
+    <h2 id="questionText"></h2><div id="options"></div>
+    <div class="row between" style="margin-top:20px"><span class="muted small" id="selectionHint">Choose one answer.</span><button id="nextBtn" disabled>Next →</button></div>
+  </section>
+  <section id="results" class="card hidden">
+    <p class="logo" style="color:var(--accent2);font-weight:800;letter-spacing:.14em">QUIZ COMPLETE</p><h2 id="resultHeading">Nice work!</h2><p class="muted" id="resultMessage"></p>
+    <div class="statgrid"><div class="stat"><strong id="finalScore">0</strong><span>POINTS</span></div><div class="stat"><strong id="finalCorrect">0/0</strong><span>CORRECT</span></div><div class="stat"><strong id="finalPercent">0%</strong><span>RESULT</span></div></div>
+    <p id="saveStatus" class="muted small">Saving your result…</p><div class="row"><button id="againBtn">Play again</button><button class="secondary" id="showBoardBtn">View leaderboard</button></div>
+  </section>
+  <section id="leaderboard" class="card hidden"><div class="row between"><div><h2 style="margin:0">Leaderboard</h2><p class="muted small" style="margin:4px 0 0">Top scores from quiz participants</p></div><button class="secondary" id="refreshBoardBtn">Refresh</button></div><div id="boardList"><p class="muted">Loading scores…</p></div><button class="secondary" id="backBtn">Back to quiz</button></section>
+  <section id="admin" class="card hidden">
+    <div class="row between"><div><h2 style="margin:0">Quiz admin</h2><p class="muted small">Manage the questions shown to participants.</p></div><button class="secondary" id="logoutBtn">Sign out</button></div>
+    <div id="loginPanel"><p class="muted">Sign in with the administrator account you created in Firebase Authentication.</p><label>Email</label><input id="adminEmail" type="email" autocomplete="username" placeholder="admin@example.com"><label>Password</label><input id="adminPassword" type="password" autocomplete="current-password" placeholder="Password"><button id="loginBtn">Sign in</button><p id="loginStatus" class="small muted"></p></div>
+    <div id="adminPanel" class="hidden"><hr><h3 id="editorTitle">Add a question</h3><input id="editId" class="hidden"><label>Question</label><textarea id="qText" placeholder="Write the question..."></textarea>
+      <label>Answer option A</label><input id="optA" placeholder="Option A"><label>Answer option B</label><input id="optB" placeholder="Option B"><label>Answer option C</label><input id="optC" placeholder="Option C"><label>Answer option D</label><input id="optD" placeholder="Option D">
+      <label>Correct answer</label><select id="correctOpt" style="width:100%;padding:12px;background:#10131e;border:1px solid var(--line);color:white;border-radius:11px;margin:5px 0 13px"><option value="0">A</option><option value="1">B</option><option value="2">C</option><option value="3">D</option></select>
+      <div class="row"><button id="saveQuestionBtn">Save question</button><button class="secondary" id="cancelEditBtn">Clear form</button></div><p id="adminStatus" class="small muted"></p><hr><div class="row between"><h3>Current questions</h3><button class="secondary" id="resetScoresBtn">Clear leaderboard</button></div><div id="questionList"></div>
+    </div>
+  </section>
+  <div class="footer">Made for curious minds ✦ <button class="secondary" id="adminLink" style="padding:5px 9px;font-size:11px">Admin</button></div>
+</main>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, doc, setDoc, deleteDoc, query, orderBy, limit, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* SETUP: Replace this object with the Firebase web config from your Firebase project. */
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDZcy800b-H2RzM2OcZbv3t3o1jB4nV-mE",
+  authDomain: "questions-77148.firebaseapp.com",
+  projectId: "questions-77148",
+  storageBucket: "questions-77148.firebasestorage.app",
+  messagingSenderId: "127395339877",
+  appId: "1:127395339877:web:bcdb921615975927d1f08c",
+  measurementId: "G-E74YP01Q1C"
+};
+const configured = !Object.values(firebaseConfig).some(v => v.startsWith("PASTE_"));
+let app, auth, db, currentUser=null;
+if(configured){app=initializeApp(firebaseConfig);auth=getAuth(app);db=getFirestore(app);}
+const $=id=>document.getElementById(id);
+const sections=["home","quiz","results","leaderboard","admin"];
+function show(name){sections.forEach(s=>$(s).classList.toggle("hidden",s!==name));}
+function msg(id,text,cls="muted"){$(id).textContent=text;$(id).className="small "+cls;}
+let questions=[],idx=0,answers=[],player="",editingId=null;
+const demoQuestions=[
+ {id:"demo1",question:"Which language structures a webpage?",options:["HTML","SQL","Python","Bash"],correctIndex:0},
+ {id:"demo2",question:"Which one is a web browser?",options:["Linux","Chrome","Wi-Fi","RAM"],correctIndex:1},
+ {id:"demo3",question:"What does CSS mainly control?",options:["Database storage","Network routing","Page appearance","User passwords"],correctIndex:2}
+];
+function checkConfig(){if(!configured){$("setupNotice").classList.remove("hidden");$("setupNotice").innerHTML="Firebase isn't connected yet. The website's layout can be previewed, but online questions, login and leaderboard won't work until you add your Firebase config. See <b>README.md</b> in the downloaded project.";}}
+async function loadQuestions(){
+ if(!configured){questions=demoQuestions;return;}
+ const snap=await getDocs(collection(db,"questions"));
+ questions=snap.docs.map(d=>({id:d.id,...d.data()}));
+ questions.sort((a,b)=>(a.order??0)-(b.order??0));
+}
+$("startBtn").onclick=async()=>{
+ player=$("playerName").value.trim();if(!player){alert("Please enter a name or nickname.");return;}
+ $("startBtn").disabled=true;
+ try{await loadQuestions();if(!questions.length){alert("The quiz has no questions yet. Ask the admin to add some.");return;}idx=0;answers=[];show("quiz");renderQuestion();}
+ catch(e){alert("Couldn't load the quiz. Check your Firebase setup and Firestore rules. "+e.message);}
+ finally{$("startBtn").disabled=false;}
+};
+function renderQuestion(){
+ const q=questions[idx];$("questionCount").textContent=`Question ${idx+1} of ${questions.length}`;$("liveScore").textContent=`Score: ${answers.filter((a,i)=>a===questions[i].correctIndex).length}`;
+ $("progressBar").style.width=`${idx/questions.length*100}%`;$("questionText").textContent=q.question;$("options").innerHTML="";$("nextBtn").disabled=true;$("nextBtn").textContent=idx===questions.length-1?"Finish quiz ✓":"Next →";
+ q.options.forEach((o,i)=>{const b=document.createElement("button");b.className="option";b.innerHTML=`<span class="letter">${"ABCD"[i]}</span><span></span>`;b.lastElementChild.textContent=o;b.onclick=()=>{answers[idx]=i;document.querySelectorAll(".option").forEach(x=>x.classList.remove("selected"));b.classList.add("selected");$("nextBtn").disabled=false;};$("options").appendChild(b);});
+}
+$("nextBtn").onclick=()=>{if(answers[idx]===undefined)return;if(idx<questions.length-1){idx++;renderQuestion();}else finishQuiz();};
+async function finishQuiz(){
+ const correct=questions.reduce((n,q,i)=>n+(answers[i]===q.correctIndex?1:0),0),total=questions.length,pct=Math.round(correct/total*100);
+ $("finalScore").textContent=`${correct}/${total}`;$("finalCorrect").textContent=`${correct}/${total}`;$("finalPercent").textContent=`${pct}%`;
+ $("resultHeading").textContent=pct===100?"Perfect score!":pct>=70?"Great work!":pct>=40?"Good effort!":"Keep practicing!";
+ $("resultMessage").textContent=`${player}, you got ${correct} out of ${total} questions correct.`;$("saveStatus").textContent="";show("results");
+ if(configured){try{await addDoc(collection(db,"scores"),{name:player.slice(0,40),score:correct,total,percent:pct,createdAt:serverTimestamp()});$("saveStatus").textContent="Your result has been saved to the leaderboard."; }catch(e){$("saveStatus").textContent="Your score is shown here, but couldn't be saved. Check Firestore rules.";}}
+ else $("saveStatus").textContent="Preview mode: score isn't saved online until Firebase is configured.";
+}
+$("againBtn").onclick=()=>{show("home");$("playerName").value=player;};
+$("showBoardBtn").onclick=async()=>{show("leaderboard");await loadBoard();};
+$("refreshBoardBtn").onclick=loadBoard;
+async function loadBoard(){
+ const box=$("boardList");box.innerHTML="<p class='muted'>Loading scores…</p>";
+ if(!configured){box.innerHTML="<p class='muted'>Connect Firebase to save and view scores across devices.</p>";return;}
+ try{const snap=await getDocs(query(collection(db,"scores"),orderBy("score","desc"),limit(100)));const rows=snap.docs.map(d=>d.data()).sort((a,b)=>b.score-a.score||(b.percent??0)-(a.percent??0));box.innerHTML="";
+ if(!rows.length){box.innerHTML="<p class='muted'>No scores yet. Be the first!</p>";return;}
+ rows.forEach((r,i)=>{const el=document.createElement("div");el.className="score-item row between";const left=document.createElement("div");left.innerHTML=`<strong>${i+1}. </strong>`;const name=document.createElement("span");name.textContent=r.name||"Player";left.appendChild(name);const right=document.createElement("strong");right.textContent=`${r.score}/${r.total}`;el.append(left,right);box.appendChild(el);});
+ }catch(e){box.innerHTML="<p class='error'>Could not load scores. Check your Firestore rules.</p>";}
+}
+$("backBtn").onclick=()=>show("home");
+$("adminLink").onclick=()=>{show("admin");if(configured&&!currentUser){$("loginPanel").classList.remove("hidden");$("adminPanel").classList.add("hidden");}};
+$("loginBtn").onclick=async()=>{if(!configured){msg("loginStatus","Add your Firebase config first.","error");return;}try{await signInWithEmailAndPassword(auth,$("adminEmail").value,$("adminPassword").value);msg("loginStatus","Signed in.");}catch(e){msg("loginStatus","Login failed: "+e.message,"error");}};
+$("logoutBtn").onclick=async()=>{if(auth)await signOut(auth);};
+if(configured)onAuthStateChanged(auth,user=>{currentUser=user;$("loginPanel").classList.toggle("hidden",!!user);$("adminPanel").classList.toggle("hidden",!user);if(user)loadAdminQuestions().catch(e=>msg("adminStatus","Could not load questions: "+e.message,"error"));});
+async function loadAdminQuestions(){
+ if(!currentUser)return;await loadQuestions();const box=$("questionList");box.innerHTML="";
+ questions.forEach((q,i)=>{const el=document.createElement("div");el.className="question-item";const title=document.createElement("h3");title.textContent=`${i+1}. ${q.question}`;const detail=document.createElement("p");detail.className="muted small";detail.textContent=`Correct answer: ${"ABCD"[q.correctIndex]} · ${q.options[q.correctIndex]}`;const row=document.createElement("div");row.className="row";const edit=document.createElement("button");edit.className="secondary";edit.textContent="Edit";edit.onclick=()=>fillEditor(q);const del=document.createElement("button");del.className="danger";del.textContent="Delete";del.onclick=async()=>{if(confirm("Delete this question?")){try{await deleteDoc(doc(db,"questions",q.id));await loadAdminQuestions();msg("adminStatus","Question deleted.","success");}catch(e){msg("adminStatus","Delete failed: "+e.message,"error");}}};row.append(edit,del);el.append(title,detail,row);box.appendChild(el);});
+}
+function fillEditor(q){editingId=q.id;$("editorTitle").textContent="Edit question";$("editId").value=q.id;$("qText").value=q.question;["optA","optB","optC","optD"].forEach((id,i)=>$(id).value=q.options[i]||"");$("correctOpt").value=String(q.correctIndex);$("saveQuestionBtn").textContent="Update question";window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"});}
+function clearEditor(){editingId=null;$("editorTitle").textContent="Add a question";$("editId").value="";["qText","optA","optB","optC","optD"].forEach(id=>$(id).value="");$("correctOpt").value="0";$("saveQuestionBtn").textContent="Save question";}
+$("cancelEditBtn").onclick=clearEditor;
+$("saveQuestionBtn").onclick=async()=>{
+ const question=$("qText").value.trim(),options=["optA","optB","optC","optD"].map(id=>$(id).value.trim()),correctIndex=Number($("correctOpt").value);
+ if(!question||options.some(x=>!x)){msg("adminStatus","Fill in the question and all four options.","error");return;}
+ if(!configured||!currentUser){msg("adminStatus","Sign in to Firebase first.","error");return;}
+ try{const data={question,options,correctIndex,order:editingId?(questions.find(q=>q.id===editingId)?.order??questions.length):questions.length,updatedAt:serverTimestamp()};if(editingId)await setDoc(doc(db,"questions",editingId),data,{merge:true});else await addDoc(collection(db,"questions"),{...data,createdAt:serverTimestamp()});clearEditor();await loadAdminQuestions();msg("adminStatus","Question saved.","success");}
+ catch(e){msg("adminStatus","Save failed: "+e.message,"error");}
+};
+$("resetScoresBtn").onclick=async()=>{if(!confirm("Delete every leaderboard score? This cannot be undone."))return;try{const snap=await getDocs(collection(db,"scores"));const batch=writeBatch(db);snap.docs.forEach(d=>batch.delete(d.ref));await batch.commit();msg("adminStatus","Leaderboard cleared.","success");}catch(e){msg("adminStatus","Could not clear leaderboard: "+e.message,"error");}};
+checkConfig();show("home");
+</script>
+</body>
+</html>
